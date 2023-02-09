@@ -158,7 +158,7 @@ program
       feeNumber = Math.ceil(feeNumber * LAMPORTS_PER_SOL);
     } else {
       const token = new Token(
-        anchorProgram.provider.connection,
+        anchorProgram[0].provider.connection,
         //@ts-ignore
         new anchor.web3.PublicKey(treasuryMint),
         TOKEN_PROGRAM_ID,
@@ -190,7 +190,7 @@ program
             isSigner: false,
           },
         ];
-    await anchorProgram.rpc.initializeFairLaunch(
+    await anchorProgram[0].rpc.initializeFairLaunch(
       fairLaunchBump,
       treasuryBump,
       tokenBump,
@@ -340,7 +340,7 @@ program
       feeNumber = Math.ceil(feeNumber * LAMPORTS_PER_SOL);
     } else {
       const token = new Token(
-        anchorProgram.provider.connection,
+        anchorProgram[0].provider.connection,
         //@ts-ignore
         fairLaunchObj.treasuryMint,
         TOKEN_PROGRAM_ID,
@@ -361,7 +361,7 @@ program
     )[0];
     const fairLaunch = (await getFairLaunch(tokenMint))[0];
 
-    await anchorProgram.rpc.updateFairLaunch(
+    await anchorProgram[0].rpc.updateFairLaunch(
       {
         uuid: realUuid,
         priceRangeStart: new anchor.BN(priceRangeStartNumber),
@@ -409,7 +409,7 @@ program
     const anchorProgram = await loadFairLaunchProgram(walletKeyPair, env);
 
     const fairLaunchKey = new anchor.web3.PublicKey(fairLaunch);
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunchKey,
     );
     const [fairLaunchTicket, bump] = await getFairLaunchTicket(
@@ -439,7 +439,7 @@ program
       const transferAuthority = anchor.web3.Keypair.generate();
       signers.push(transferAuthority);
       const token = new Token(
-        anchorProgram.provider.connection,
+        anchorProgram[0].provider.connection,
         //@ts-ignore
         fairLaunchObj.treasuryMint,
         TOKEN_PROGRAM_ID,
@@ -486,7 +486,7 @@ program
     }
 
     instructions.push(
-      await anchorProgram.instruction.purchaseTicket(
+      await anchorProgram[0].instruction.purchaseTicket(
         bump,
         new anchor.BN(amountNumber),
         {
@@ -518,7 +518,7 @@ program
     }
 
     await sendTransactionWithRetryWithKeypair(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       walletKeyPair,
       instructions,
       signers,
@@ -533,7 +533,7 @@ program
       await sleep(5000);
       try {
         fairLaunchTicketObj =
-          await anchorProgram.account.fairLaunchTicket.fetch(fairLaunchTicket);
+          await anchorProgram[0].account.fairLaunchTicket.fetch(fairLaunchTicket);
         break;
       } catch (e) {
         console.log('Not found. Trying again...');
@@ -548,7 +548,7 @@ program
         fairLaunchTicketObj.seq,
       );
 
-    await anchorProgram.rpc.createTicketSeq(seqBump, {
+    await anchorProgram[0].rpc.createTicketSeq(seqBump, {
       accounts: {
         fairLaunchTicketSeqLookup,
         fairLaunch,
@@ -593,7 +593,7 @@ program
     const token = (await getAtaForMint(mintKey, dest))[0];
     const instructions = [];
     const tokenApp = new Token(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       //@ts-ignore
       new anchor.web3.PublicKey(mint),
       TOKEN_PROGRAM_ID,
@@ -603,7 +603,7 @@ program
     const mintInfo = await tokenApp.getMintInfo();
 
     const mantissa = 10 ** mintInfo.decimals;
-    const assocToken = await anchorProgram.provider.connection.getAccountInfo(
+    const assocToken = await anchorProgram[0].provider.connection.getAccountInfo(
       token,
     );
     if (!assocToken) {
@@ -629,7 +629,7 @@ program
     );
 
     await sendTransactionWithRetryWithKeypair(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       walletKeyPair,
       instructions,
       [],
@@ -665,7 +665,7 @@ program
         newAccountPubkey: mint.publicKey,
         space: MintLayout.span,
         lamports:
-          await anchorProgram.provider.connection.getMinimumBalanceForRentExemption(
+          await anchorProgram[0].provider.connection.getMinimumBalanceForRentExemption(
             MintLayout.span,
           ),
         programId: TOKEN_PROGRAM_ID,
@@ -688,7 +688,7 @@ program
     const signers = [mint];
 
     await sendTransactionWithRetryWithKeypair(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       walletKeyPair,
       instructions,
       signers,
@@ -739,7 +739,7 @@ async function adjustTicket({
     const transferAuthority = anchor.web3.Keypair.generate();
     signers.push(transferAuthority);
     const token = new Token(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       fairLaunchObj.treasuryMint,
       TOKEN_PROGRAM_ID,
       payer,
@@ -786,7 +786,7 @@ async function adjustTicket({
   }
 
   instructions.push(
-    await anchorProgram.instruction.adjustTicket(new anchor.BN(amountNumber), {
+    await anchorProgram[0].instruction.adjustTicket(new anchor.BN(amountNumber), {
       accounts: {
         fairLaunchTicket,
         fairLaunch,
@@ -821,7 +821,7 @@ async function adjustTicket({
   }
 
   await sendTransactionWithRetryWithKeypair(
-    anchorProgram.provider.connection,
+    anchorProgram[0].provider.connection,
     payer,
     instructions,
     signers,
@@ -892,7 +892,7 @@ program
     const anchorProgram = await loadFairLaunchProgram(walletKeyPair, env);
 
     const fairLaunchKey = new anchor.web3.PublicKey(fairLaunch);
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunchKey,
     );
 
@@ -905,7 +905,7 @@ program
       )
     )[0];
 
-    await anchorProgram.rpc.updateParticipationNft(
+    await anchorProgram[0].rpc.updateParticipationNft(
       participationModuloNumber,
       {
         name,
@@ -989,7 +989,7 @@ program
     const anchorProgram = await loadFairLaunchProgram(walletKeyPair, env);
 
     const fairLaunchKey = new anchor.web3.PublicKey(fairLaunch);
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunchKey,
     );
 
@@ -1006,7 +1006,7 @@ program
       fairLaunchObj.data.uuid,
     );
 
-    await anchorProgram.rpc.setParticipationNft(
+    await anchorProgram[0].rpc.setParticipationNft(
       mintBump,
       tokenBump,
       participationModuloNumber,
@@ -1094,11 +1094,11 @@ program
     const anchorProgram = await loadFairLaunchProgram(walletKeyPair, env);
 
     const fairLaunchKey = new anchor.web3.PublicKey(fairLaunch);
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunchKey,
     );
 
-    await anchorProgram.rpc.setTokenMetadata(
+    await anchorProgram[0].rpc.setTokenMetadata(
       {
         name,
         symbol,
@@ -1150,7 +1150,7 @@ program
     const anchorProgram = await loadFairLaunchProgram(walletKeyPair, env);
 
     const fairLaunchKey = new anchor.web3.PublicKey(fairLaunch);
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunchKey,
     );
     const fairLaunchTicket = (
@@ -1204,7 +1204,7 @@ program
     );
 
     const fairLaunchKey = new anchor.web3.PublicKey(fairLaunch);
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunchKey,
     );
 
@@ -1216,7 +1216,7 @@ program
     )[0];
 
     const fairLaunchLotteryBitmapObj =
-      await anchorProgram.provider.connection.getAccountInfo(
+      await anchorProgram[0].provider.connection.getAccountInfo(
         fairLaunchLotteryBitmap,
       );
 
@@ -1253,7 +1253,7 @@ program
             while (tries < 3 && !done) {
               try {
                 result = await getMultipleAccounts(
-                  anchorProgram.provider.connection,
+                  anchorProgram[0].provider.connection,
                   slice.map(s => s.toBase58()),
                   'recent',
                 );
@@ -1302,7 +1302,7 @@ program
               while (tries < 3 && !done) {
                 try {
                   result = await getMultipleAccounts(
-                    anchorProgram.provider.connection,
+                    anchorProgram[0].provider.connection,
                     slice.map(s => s.toBase58()),
                     'recent',
                   );
@@ -1317,7 +1317,7 @@ program
               states = states.concat(
                 result.array.map((a, i) => ({
                   key: new anchor.web3.PublicKey(result.keys[i]),
-                  model: anchorProgram.coder.accounts.decode(
+                  model: anchorProgram[0].coder.accounts.decode(
                     'FairLaunchTicket',
                     a.data,
                   ),
@@ -1615,7 +1615,7 @@ async function getParticipationNft({
         newAccountPubkey: mint.publicKey,
         space: MintLayout.span,
         lamports:
-          await anchorProgram.provider.connection.getMinimumBalanceForRentExemption(
+          await anchorProgram[0].provider.connection.getMinimumBalanceForRentExemption(
             MintLayout.span,
           ),
         programId: TOKEN_PROGRAM_ID,
@@ -1642,7 +1642,7 @@ async function getParticipationNft({
         1,
       ),
     ];
-    await anchorProgram.rpc.mintParticipationNft({
+    await anchorProgram[0].rpc.mintParticipationNft({
       accounts: {
         fairLaunch,
         fairLaunchTicket,
@@ -1703,9 +1703,9 @@ async function punchTicket({
   )[0];
 
   const exists =
-    anchorProgram.provider.connection.getAccountInfo(buyerTokenAccount);
+    anchorProgram[0].provider.connection.getAccountInfo(buyerTokenAccount);
 
-  await anchorProgram.rpc.punchTicket({
+  await anchorProgram[0].rpc.punchTicket({
     accounts: {
       fairLaunchTicket,
       fairLaunch,
@@ -1755,7 +1755,7 @@ program
     const anchorProgram = await loadFairLaunchProgram(walletKeyPair, env);
 
     const fairLaunchKey = new anchor.web3.PublicKey(fairLaunch);
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunchKey,
     );
 
@@ -1770,7 +1770,7 @@ program
     const fairLaunchLotteryBitmap = //@ts-ignore
     (await getFairLaunchLotteryBitmap(fairLaunchObj.tokenMint))[0];
 
-    const ticket = await anchorProgram.account.fairLaunchTicket.fetch(
+    const ticket = await anchorProgram[0].account.fairLaunchTicket.fetch(
       fairLaunchTicket,
     );
 
@@ -1884,7 +1884,7 @@ program
     const anchorProgram = await loadFairLaunchProgram(walletKeyPair, env);
 
     const fairLaunchKey = new anchor.web3.PublicKey(fairLaunch);
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunchKey,
     );
 
@@ -1909,7 +1909,7 @@ program
     ];
 
     await sendTransactionWithRetryWithKeypair(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       walletKeyPair,
       instructions,
       [],
@@ -1941,13 +1941,13 @@ program
     const anchorProgram = await loadFairLaunchProgram(walletKeyPair, env);
 
     const fairLaunchKey = new anchor.web3.PublicKey(fairLaunch);
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunchKey,
     );
     const fairLaunchLotteryBitmap = //@ts-ignore
     (await getFairLaunchLotteryBitmap(fairLaunchObj.tokenMint))[0];
 
-    await anchorProgram.rpc.startPhaseThree({
+    await anchorProgram[0].rpc.startPhaseThree({
       accounts: {
         fairLaunch,
         fairLaunchLotteryBitmap,
@@ -1982,13 +1982,13 @@ program
     const anchorProgram = await loadFairLaunchProgram(walletKeyPair, env);
 
     const fairLaunchKey = new anchor.web3.PublicKey(fairLaunch);
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunchKey,
     );
     const tokenAccount = //@ts-ignore
     (await getAtaForMint(fairLaunchObj.tokenMint, walletKeyPair.publicKey))[0];
 
-    const exists = await anchorProgram.provider.connection.getAccountInfo(
+    const exists = await anchorProgram[0].provider.connection.getAccountInfo(
       tokenAccount,
     );
 
@@ -2005,7 +2005,7 @@ program
       );
     }
 
-    await anchorProgram.rpc.mintTokens(new anchor.BN(amountNumber), {
+    await anchorProgram[0].rpc.mintTokens(new anchor.BN(amountNumber), {
       accounts: {
         fairLaunch: fairLaunchKey,
         authority: walletKeyPair.publicKey,
@@ -2074,7 +2074,7 @@ program
       rpcUrl,
     );
     const fairLaunchKey = new anchor.web3.PublicKey(fairLaunch);
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunchKey,
     );
 
@@ -2128,7 +2128,7 @@ program
             let exists = lookup[existingAta.toBase58()];
             if (!exists) {
               exists =
-                !!(await anchorProgram.provider.connection.getAccountInfo(
+                !!(await anchorProgram[0].provider.connection.getAccountInfo(
                   existingAta,
                 ));
             }
@@ -2231,7 +2231,7 @@ program
         const instructionBatch = ataInstrBatch[i];
         const signerBatch = ataSignerBatch[i];
         await sendTransactionWithRetryWithKeypair(
-          anchorProgram.provider.connection,
+          anchorProgram[0].provider.connection,
           walletKeyPair,
           instructionBatch,
           signerBatch,
@@ -2251,7 +2251,7 @@ program
         const instructionBatch = currInstrBatch[i];
         const signerBatch = currSignerBatch[i];
         await sendTransactionWithRetryWithKeypair(
-          anchorProgram.provider.connection,
+          anchorProgram[0].provider.connection,
           walletKeyPair,
           instructionBatch,
           signerBatch,
@@ -2285,7 +2285,7 @@ program
     const anchorProgram = await loadFairLaunchProgram(walletKeyPair, env);
 
     const fairLaunchKey = new anchor.web3.PublicKey(fairLaunch);
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunchKey,
     );
 
@@ -2317,7 +2317,7 @@ program
       });
     }
 
-    await anchorProgram.rpc.withdrawFunds({
+    await anchorProgram[0].rpc.withdrawFunds({
       accounts: {
         fairLaunch,
         // @ts-ignore
@@ -2352,7 +2352,7 @@ program
     const walletKeyPair = loadWalletKey(keypair);
     const anchorProgram = await loadFairLaunchProgram(walletKeyPair, env);
 
-    await anchorProgram.rpc.restartPhaseTwo({
+    await anchorProgram[0].rpc.restartPhaseTwo({
       accounts: {
         fairLaunch,
         clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
@@ -2382,7 +2382,7 @@ program
     const anchorProgram = await loadFairLaunchProgram(walletKeyPair, env);
 
     const fairLaunchKey = new anchor.web3.PublicKey(fairLaunch);
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunchKey,
     );
 
@@ -2433,7 +2433,7 @@ program
       });
     }
 
-    const txid = await anchorProgram.rpc.receiveRefund({
+    const txid = await anchorProgram[0].rpc.receiveRefund({
       accounts: {
         fairLaunch,
         // @ts-ignore
@@ -2487,7 +2487,7 @@ program
       : null;
 
     const fairLaunchKey = new anchor.web3.PublicKey(fairLaunch);
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunchKey,
     );
 
@@ -2496,12 +2496,12 @@ program
       fairLaunchObj.tokenMint,
     );
 
-    const exists = await anchorProgram.provider.connection.getAccountInfo(
+    const exists = await anchorProgram[0].provider.connection.getAccountInfo(
       fairLaunchLotteryBitmap,
     );
 
     if (!exists) {
-      await anchorProgram.rpc.createFairLaunchLotteryBitmap(bump, {
+      await anchorProgram[0].rpc.createFairLaunchLotteryBitmap(bump, {
         accounts: {
           fairLaunch,
           fairLaunchLotteryBitmap,
@@ -2550,7 +2550,7 @@ program
               .slice(i, i + 100)
               .map(index => seqKeys[index]);
             const result = await getMultipleAccounts(
-              anchorProgram.provider.connection,
+              anchorProgram[0].provider.connection,
               slice.map(s => s.toBase58()),
               'recent',
             );
@@ -2590,13 +2590,13 @@ program
               .slice(i, i + 100)
               .map(index => ticketsFlattened[index]);
             const result = await getMultipleAccounts(
-              anchorProgram.provider.connection,
+              anchorProgram[0].provider.connection,
               slice.map(s => s.toBase58()),
               'recent',
             );
             states = states.concat(
               result.array.map(a => {
-                const el = anchorProgram.coder.accounts.decode(
+                const el = anchorProgram[0].coder.accounts.decode(
                   'FairLaunchTicket',
                   a.data,
                 );
@@ -2622,7 +2622,7 @@ program
 
     const statesFlat = states.flat();
     const token = new Token(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       //@ts-ignore
       new anchor.web3.PublicKey(fairLaunchObj.tokenMint),
       TOKEN_PROGRAM_ID,
@@ -2722,7 +2722,7 @@ program
             bytes.map((e, i) => [e, correspondingArrayOfBits[i]]),
           );
 
-          await anchorProgram.rpc.updateFairLaunchLotteryBitmap(
+          await anchorProgram[0].rpc.updateFairLaunchLotteryBitmap(
             startingOffset,
             Buffer.from(bytes),
             {
@@ -2768,10 +2768,10 @@ program
       env,
       rpcUrl,
     );
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunch,
     );
-    const tickets = await anchorProgram.provider.connection.getProgramAccounts(
+    const tickets = await anchorProgram[0].provider.connection.getProgramAccounts(
       FAIR_LAUNCH_PROGRAM_ID,
       {
         filters: [
@@ -2808,7 +2808,7 @@ program
                   ),
                 );
               try {
-                await anchorProgram.rpc.createTicketSeq(seqBump, {
+                await anchorProgram[0].rpc.createTicketSeq(seqBump, {
                   accounts: {
                     fairLaunchTicketSeqLookup,
                     fairLaunch,
@@ -2862,7 +2862,7 @@ program
       rpcUrl,
     );
 
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunch,
     );
 
@@ -2870,13 +2870,13 @@ program
     // @ts-ignore
     if (fairLaunchObj.treasuryMint) {
       const token =
-        await anchorProgram.provider.connection.getTokenAccountBalance(
+        await anchorProgram[0].provider.connection.getTokenAccountBalance(
           // @ts-ignore
           fairLaunchObj.treasury,
         );
       treasuryAmount = token.value.uiAmount;
     } else {
-      treasuryAmount = await anchorProgram.provider.connection.getBalance(
+      treasuryAmount = await anchorProgram[0].provider.connection.getBalance(
         // @ts-ignore
         fairLaunchObj.treasury,
       );
@@ -3086,7 +3086,7 @@ program
     const walletKeyPair = loadWalletKey(keypair);
     const anchorProgram = await loadFairLaunchProgram(walletKeyPair, env);
 
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunch,
     );
 
@@ -3101,7 +3101,7 @@ program
     )[0];
 
     const fairLaunchTicketObj =
-      await anchorProgram.account.fairLaunchTicket.fetch(fairLaunchTicket);
+      await anchorProgram[0].account.fairLaunchTicket.fetch(fairLaunchTicket);
 
     //@ts-ignore
     console.log('Buyer', fairLaunchTicketObj.buyer.toBase58());
@@ -3144,7 +3144,7 @@ program
       rpcUrl,
     );
 
-    const fairLaunchObj = await anchorProgram.account.fairLaunch.fetch(
+    const fairLaunchObj = await anchorProgram[0].account.fairLaunch.fetch(
       fairLaunch,
     );
 
@@ -3156,10 +3156,10 @@ program
     )[0];
 
     const fairLaunchLotteryBitmapObj =
-      await anchorProgram.provider.connection.getAccountInfo(fairLaunchLottery);
+      await anchorProgram[0].provider.connection.getAccountInfo(fairLaunchLottery);
 
     const fairLaunchLotteryBitmapAnchorObj =
-      await anchorProgram.account.fairLaunchLotteryBitmap.fetch(
+      await anchorProgram[0].account.fairLaunchLotteryBitmap.fetch(
         fairLaunchLottery,
       );
     const seqKeys = [];
@@ -3190,7 +3190,7 @@ program
                 .slice(i, i + 100)
                 .map(index => seqKeys[index]);
               const result = await getMultipleAccounts(
-                anchorProgram.provider.connection,
+                anchorProgram[0].provider.connection,
                 slice.map(s => s.toBase58()),
                 'recent',
               );

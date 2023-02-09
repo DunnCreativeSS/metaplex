@@ -84,7 +84,7 @@ export async function arweaveUpload(
   ];
 
   const tx = await sendTransactionWithRetryWithKeypair(
-    anchorProgram.provider.connection,
+    anchorProgram[0].provider.connection,
     walletKeyPair,
     instructions,
     [],

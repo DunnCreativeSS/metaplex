@@ -334,7 +334,7 @@ const getSetupForTicketing = async (
     /// ex from cli wont work since you dont have a Signer, but an anchor.Wallet
     /*
     const token = new Token(
-        anchorProgram.provider.connection,
+        anchorProgram[0].provider.connection,
         //@ts-ignore
         fairLaunchObj.treasuryMint,
         TOKEN_PROGRAM_ID,
@@ -394,12 +394,12 @@ const getSetupForTicketing = async (
         ticket.data?.seq,
       );
 
-    const seq = await anchorProgram.provider.connection.getAccountInfo(
+    const seq = await anchorProgram[0].provider.connection.getAccountInfo(
       fairLaunchTicketSeqLookup,
     );
     if (!seq) {
       instructions.push(
-        await anchorProgram.instruction.createTicketSeq(seqBump, {
+        await anchorProgram[0].instruction.createTicketSeq(seqBump, {
           accounts: {
             fairLaunchTicketSeqLookup,
             fairLaunch: fairLaunch.id,

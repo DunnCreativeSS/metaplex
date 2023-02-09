@@ -100,7 +100,7 @@ export async function upload(
         // initialize config
         log.info(`initializing config`);
         try {
-          const res = await createConfig(anchorProgram, walletKeyPair, {
+          const res = await createConfig(anchorProgram[0],walletKeyPair, {
             maxNumberOfLines: new BN(totalNFTs),
             symbol: manifest.symbol,
             sellerFeeBasisPoints: manifest.seller_fee_basis_points,
@@ -191,7 +191,7 @@ export async function upload(
                 `Writing indices ${ind}-${keys[indexes[indexes.length - 1]]}`,
               );
               try {
-                await anchorProgram.rpc.addConfigLines(
+                await anchorProgram[0].rpc.addConfigLines(
                   ind,
                   indexes.map(i => ({
                     uri: cacheContent.items[keys[i]].link,

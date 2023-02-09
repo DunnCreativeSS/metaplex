@@ -3,6 +3,7 @@ import {
   PublicKey,
   SystemProgram,
   AccountInfo,
+  Connection
 } from '@solana/web3.js';
 import {
   CANDY_MACHINE,
@@ -21,6 +22,7 @@ import {
   ESCROW,
   B,
   A,
+  jarezi,
 } from './constants';
 import * as anchor from '@project-serum/anchor';
 import fs from 'fs';
@@ -153,10 +155,11 @@ export const getTokenWallet = async function (
 export const getCandyMachineAddress = async (
   config: anchor.web3.PublicKey,
   uuid: string,
+  programId : PublicKey = CANDY_MACHINE_PROGRAM_ID
 ): Promise<[PublicKey, number]> => {
   return await anchor.web3.PublicKey.findProgramAddress(
     [Buffer.from(CANDY_MACHINE), config.toBuffer(), Buffer.from(uuid)],
-    CANDY_MACHINE_PROGRAM_ID,
+    programId,
   );
 };
 
@@ -456,12 +459,12 @@ export function loadWalletKey(keypair): Keypair {
 export async function loadCandyProgram(
   walletKeyPair: Keypair,
   env: string,
-  customRpcUrl?: string,
+  customRpcUrl="https://rpc.helius.xyz/?api-key=8913a285-a5ef-4c35-8d80-03fb276eff2f",
 ) {
   if (customRpcUrl) console.log('USING CUSTOM URL', customRpcUrl);
 
   // @ts-ignore
-  const solConnection = new anchor.web3.Connection(
+  const solConnection = new Connection(
     //@ts-ignore
     customRpcUrl || web3.clusterApiUrl(env),
   );
@@ -471,9 +474,10 @@ export async function loadCandyProgram(
     preflightCommitment: 'recent',
   });
   const idl = await anchor.Program.fetchIdl(CANDY_MACHINE_PROGRAM_ID, provider);
-  const program = new anchor.Program(idl, CANDY_MACHINE_PROGRAM_ID, provider);
+  const program = new anchor.Program(JSON.parse(fs.readFileSync('../rust/target/idl/nft_candy_machine2.json').toString()), jarezi, provider);
+  const oldprogram = new anchor.Program(idl, CANDY_MACHINE_PROGRAM_ID, provider);
   log.debug('program id from anchor', program.programId.toBase58());
-  return program;
+  return [program, oldprogram];
 }
 
 export async function loadFairLaunchProgram(
@@ -599,7 +603,7 @@ export async function getProgramAccounts(
     args,
   );
 
-  return unsafeResAccounts(unsafeRes.result);
+  return (unsafeRes.result);
 }
 
 function unsafeAccount(account: anchor.web3.AccountInfo<[string, string]>) {

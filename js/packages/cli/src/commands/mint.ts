@@ -36,7 +36,7 @@ export async function mint(
     configAddress,
     uuid,
   );
-  const candyMachine: any = await anchorProgram.account.candyMachine.fetch(
+  const candyMachine: any = await anchorProgram[0].account.candyMachine.fetch(
     candyMachineAddress,
   );
 
@@ -48,7 +48,7 @@ export async function mint(
       newAccountPubkey: mint.publicKey,
       space: MintLayout.span,
       lamports:
-        await anchorProgram.provider.connection.getMinimumBalanceForRentExemption(
+        await anchorProgram[0].provider.connection.getMinimumBalanceForRentExemption(
           MintLayout.span,
         ),
       programId: TOKEN_PROGRAM_ID,
@@ -111,7 +111,7 @@ export async function mint(
   const masterEdition = await getMasterEdition(mint.publicKey);
 
   instructions.push(
-    await anchorProgram.instruction.mintNft({
+    await anchorProgram[0].instruction.mintNft({
       accounts: {
         config: configAddress,
         candyMachine: candyMachineAddress,
@@ -146,7 +146,7 @@ export async function mint(
 
   return (
     await sendTransactionWithRetryWithKeypair(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       userKeyPair,
       instructions,
       signers,

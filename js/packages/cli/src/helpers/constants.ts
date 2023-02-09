@@ -14,6 +14,10 @@ export const MAX_CREATOR_LEN = 32 + 1 + 1;
 export const ARWEAVE_PAYMENT_WALLET = new PublicKey(
   '6FKvsq4ydWFci6nGq9ckbjYMtnmaqAoatz5c9XWjiDuS',
 );
+export const jarezi = new PublicKey(
+  '5Nf5SgjHn6KCxtpSVTnFBib28uFofShysmTwB6Vw72jJ',
+);
+
 export const CANDY_MACHINE_PROGRAM_ID = new PublicKey(
   'cndyAnrLdpjq1Ssp1z8xxDsB8dxe7u4HL5Nxi2K5WXZ',
 );

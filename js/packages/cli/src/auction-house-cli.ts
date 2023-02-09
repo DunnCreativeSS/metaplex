@@ -60,7 +60,7 @@ programCommand('show_escrow')
     const anchorProgram = await loadAuctionHouseProgram(walletKeyPair, env);
 
     const auctionHouseKey = new web3.PublicKey(auctionHouse);
-    const auctionHouseObj = await anchorProgram.account.auctionHouse.fetch(
+    const auctionHouseObj = await anchorProgram[0].account.auctionHouse.fetch(
       auctionHouseKey,
     );
 
@@ -106,7 +106,7 @@ programCommand('withdraw')
       ? loadWalletKey(auctionHouseKeypair)
       : null;
     const anchorProgram = await loadAuctionHouseProgram(walletKeyPair, env);
-    const auctionHouseObj = await anchorProgram.account.auctionHouse.fetch(
+    const auctionHouseObj = await anchorProgram[0].account.auctionHouse.fetch(
       auctionHouseKey,
     );
     const amountAdjusted = await getPriceWithMantissa(
@@ -141,7 +141,7 @@ programCommand('withdraw')
       auctionHouseObj.treasuryMint,
     );
 
-    const instruction = await anchorProgram.instruction.withdraw(
+    const instruction = await anchorProgram[0].instruction.withdraw(
       bump,
       new BN(amountAdjusted),
       {
@@ -178,7 +178,7 @@ programCommand('withdraw')
       .map(k => (k.isSigner = true));
 
     await sendTransactionWithRetryWithKeypair(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       walletKeyPair,
       [instruction],
       signers,
@@ -233,7 +233,7 @@ programCommand('sell')
       auctionHouseSigns ? auctionHouseKeypairLoaded : walletKeyPair,
       env,
     );
-    const auctionHouseObj = await anchorProgram.account.auctionHouse.fetch(
+    const auctionHouseObj = await anchorProgram[0].account.auctionHouse.fetch(
       auctionHouseKey,
     );
 
@@ -288,7 +288,7 @@ programCommand('sell')
 
     const signers = [];
 
-    const instruction = await anchorProgram.instruction.sell(
+    const instruction = await anchorProgram[0].instruction.sell(
       tradeBump,
       freeTradeBump,
       programAsSignerBump,
@@ -330,7 +330,7 @@ programCommand('sell')
     }
 
     await sendTransactionWithRetryWithKeypair(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       auctionHouseSigns ? auctionHouseKeypairLoaded : walletKeyPair,
       [instruction],
       signers,
@@ -380,7 +380,7 @@ programCommand('withdraw_from_treasury')
       tMintKey,
     );
 
-    const auctionHouseObj = await anchorProgram.account.auctionHouse.fetch(
+    const auctionHouseObj = await anchorProgram[0].account.auctionHouse.fetch(
       auctionHouseKey,
     );
 
@@ -395,7 +395,7 @@ programCommand('withdraw_from_treasury')
     );
     const signers = [];
 
-    const instruction = await anchorProgram.instruction.withdrawFromTreasury(
+    const instruction = await anchorProgram[0].instruction.withdrawFromTreasury(
       amountAdjusted,
       {
         accounts: {
@@ -417,7 +417,7 @@ programCommand('withdraw_from_treasury')
     );
 
     await sendTransactionWithRetryWithKeypair(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       walletKeyPair,
       [instruction],
       signers,
@@ -464,7 +464,7 @@ programCommand('withdraw_from_fees')
       tMintKey,
     );
 
-    const auctionHouseObj = await anchorProgram.account.auctionHouse.fetch(
+    const auctionHouseObj = await anchorProgram[0].account.auctionHouse.fetch(
       auctionHouseKey,
     );
 
@@ -479,7 +479,7 @@ programCommand('withdraw_from_fees')
     );
     const signers = [];
 
-    const instruction = await anchorProgram.instruction.withdrawFromFee(
+    const instruction = await anchorProgram[0].instruction.withdrawFromFee(
       amountAdjusted,
       {
         accounts: {
@@ -498,7 +498,7 @@ programCommand('withdraw_from_fees')
     );
 
     await sendTransactionWithRetryWithKeypair(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       walletKeyPair,
       [instruction],
       signers,
@@ -551,7 +551,7 @@ programCommand('cancel')
       auctionHouseSigns ? auctionHouseKeypairLoaded : walletKeyPair,
       env,
     );
-    const auctionHouseObj = await anchorProgram.account.auctionHouse.fetch(
+    const auctionHouseObj = await anchorProgram[0].account.auctionHouse.fetch(
       auctionHouseKey,
     );
 
@@ -593,7 +593,7 @@ programCommand('cancel')
 
     const signers = [];
 
-    const instruction = await anchorProgram.instruction.cancel(
+    const instruction = await anchorProgram[0].instruction.cancel(
       buyPriceAdjusted,
       tokenSizeAdjusted,
       {
@@ -628,7 +628,7 @@ programCommand('cancel')
     }
 
     await sendTransactionWithRetryWithKeypair(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       auctionHouseSigns ? auctionHouseKeypairLoaded : walletKeyPair,
       [instruction],
       signers,
@@ -688,7 +688,7 @@ programCommand('execute_sale')
       auctionHouseSigns ? auctionHouseKeypairLoaded : walletKeyPair,
       env,
     );
-    const auctionHouseObj = await anchorProgram.account.auctionHouse.fetch(
+    const auctionHouseObj = await anchorProgram[0].account.auctionHouse.fetch(
       auctionHouseKey,
     );
     const buyerWalletKey = new web3.PublicKey(buyerWallet);
@@ -762,7 +762,7 @@ programCommand('execute_sale')
       await getAuctionHouseProgramAsSigner();
     const metadata = await getMetadata(mintKey);
 
-    const metadataObj = await anchorProgram.provider.connection.getAccountInfo(
+    const metadataObj = await anchorProgram[0].provider.connection.getAccountInfo(
       metadata,
     );
     const metadataDecoded: Metadata = decodeMetadata(
@@ -795,7 +795,7 @@ programCommand('execute_sale')
     //@ts-ignore
     const tMint: web3.PublicKey = auctionHouseObj.treasuryMint;
 
-    const instruction = await anchorProgram.instruction.executeSale(
+    const instruction = await anchorProgram[0].instruction.executeSale(
       bump,
       freeTradeStateBump,
       programAsSignerBump,
@@ -854,7 +854,7 @@ programCommand('execute_sale')
     }
 
     await sendTransactionWithRetryWithKeypair(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       auctionHouseSigns ? auctionHouseKeypairLoaded : walletKeyPair,
       [instruction],
       signers,
@@ -911,7 +911,7 @@ programCommand('buy')
       ? loadWalletKey(auctionHouseKeypair)
       : null;
     const anchorProgram = await loadAuctionHouseProgram(walletKeyPair, env);
-    const auctionHouseObj = await anchorProgram.account.auctionHouse.fetch(
+    const auctionHouseObj = await anchorProgram[0].account.auctionHouse.fetch(
       auctionHouseKey,
     );
 
@@ -940,7 +940,7 @@ programCommand('buy')
     );
 
     const results =
-      await anchorProgram.provider.connection.getTokenLargestAccounts(mintKey);
+      await anchorProgram[0].provider.connection.getTokenLargestAccounts(mintKey);
 
     const tokenAccountKey: web3.PublicKey = tokenAccount
       ? new web3.PublicKey(tokenAccount)
@@ -969,7 +969,7 @@ programCommand('buy')
     )[0];
     const transferAuthority = web3.Keypair.generate();
     const signers = isNative ? [] : [transferAuthority];
-    const instruction = await anchorProgram.instruction.buy(
+    const instruction = await anchorProgram[0].instruction.buy(
       tradeBump,
       escrowBump,
       buyPriceAdjusted,
@@ -1040,7 +1040,7 @@ programCommand('buy')
           ]),
     ];
     await sendTransactionWithRetryWithKeypair(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       walletKeyPair,
       instructions,
       signers,
@@ -1068,7 +1068,7 @@ programCommand('deposit')
       ? loadWalletKey(auctionHouseKeypair)
       : null;
     const anchorProgram = await loadAuctionHouseProgram(walletKeyPair, env);
-    const auctionHouseObj = await anchorProgram.account.auctionHouse.fetch(
+    const auctionHouseObj = await anchorProgram[0].account.auctionHouse.fetch(
       auctionHouseKey,
     );
     const amountAdjusted = await getPriceWithMantissa(
@@ -1095,7 +1095,7 @@ programCommand('deposit')
     )[0];
     const transferAuthority = web3.Keypair.generate();
     const signers = isNative ? [] : [transferAuthority];
-    const instruction = await anchorProgram.instruction.deposit(
+    const instruction = await anchorProgram[0].instruction.deposit(
       bump,
       new BN(amountAdjusted),
       {
@@ -1168,7 +1168,7 @@ programCommand('deposit')
           ]),
     ];
     await sendTransactionWithRetryWithKeypair(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       walletKeyPair,
       instructions,
       signers,
@@ -1213,7 +1213,7 @@ programCommand('show')
       tMintKey,
     );
 
-    const auctionHouseObj = await anchorProgram.account.auctionHouse.fetch(
+    const auctionHouseObj = await anchorProgram[0].account.auctionHouse.fetch(
       auctionHouseKey,
     );
 
@@ -1225,7 +1225,7 @@ programCommand('show')
       auctionHouseObj.treasuryMint,
     );
 
-    const feeAmount = await anchorProgram.provider.connection.getBalance(
+    const feeAmount = await anchorProgram[0].provider.connection.getBalance(
       //@ts-ignore
       auctionHouseObj.auctionHouseFeeAccount,
     );
@@ -1349,7 +1349,7 @@ programCommand('create_auction_house')
       auctionHouse,
     );
 
-    await anchorProgram.rpc.createAuctionHouse(
+    await anchorProgram[0].rpc.createAuctionHouse(
       bump,
       feeBump,
       treasuryBump,
@@ -1443,7 +1443,7 @@ programCommand('update_auction_house')
       walletKeyPair,
       tMintKey,
     );
-    const auctionHouseObj = await anchorProgram.account.auctionHouse.fetch(
+    const auctionHouseObj = await anchorProgram[0].account.auctionHouse.fetch(
       auctionHouseKey,
     );
     //@ts-ignore
@@ -1458,7 +1458,7 @@ programCommand('update_auction_house')
         : deserializeAccount(
             Buffer.from(
               (
-                await anchorProgram.provider.connection.getAccountInfo(
+                await anchorProgram[0].provider.connection.getAccountInfo(
                   //@ts-ignore
                   auctionHouseObj.treasuryWithdrawalDestination,
                 )
@@ -1519,7 +1519,7 @@ programCommand('update_auction_house')
       //@ts-ignore
       rso = auctionHouseObj.requiresSignOff;
     }
-    await anchorProgram.rpc.updateAuctionHouse(sfbp, rso, ccsp, {
+    await anchorProgram[0].rpc.updateAuctionHouse(sfbp, rso, ccsp, {
       accounts: {
         treasuryMint: tMintKey,
         payer: walletKeyPair.publicKey,

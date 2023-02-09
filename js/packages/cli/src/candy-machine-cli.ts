@@ -20,6 +20,7 @@ import {
   EXTENSION_JSON,
   EXTENSION_PNG,
   CANDY_MACHINE_PROGRAM_ID,
+  jarezi,
 } from './helpers/constants';
 import {
   getCandyMachineAddress,
@@ -45,565 +46,6 @@ import { createGenerativeArt } from './commands/createArt';
 import { withdraw } from './commands/withdraw';
 program.version('0.0.2');
 
-if (!fs.existsSync(CACHE_PATH)) {
-  fs.mkdirSync(CACHE_PATH);
-}
-log.setLevel(log.levels.INFO);
-programCommand('upload')
-  .argument(
-    '<directory>',
-    'Directory containing images named from 0-n',
-    val => {
-      return fs.readdirSync(`${val}`).map(file => path.join(val, file));
-    },
-  )
-  .option('-n, --number <number>', 'Number of images to upload')
-  .option(
-    '-s, --storage <string>',
-    'Database to use for storage (arweave, ipfs, aws)',
-    'arweave',
-  )
-  .option(
-    '--ipfs-infura-project-id <string>',
-    'Infura IPFS project id (required if using IPFS)',
-  )
-  .option(
-    '--ipfs-infura-secret <string>',
-    'Infura IPFS scret key (required if using IPFS)',
-  )
-  .option(
-    '--aws-s3-bucket <string>',
-    '(existing) AWS S3 Bucket name (required if using aws)',
-  )
-  .option('--no-retain-authority', 'Do not retain authority to update metadata')
-  .option('--no-mutable', 'Metadata will not be editable')
-  .option(
-    '-r, --rpc-url <string>',
-    'custom rpc url since this is a heavy command',
-  )
-  .action(async (files: string[], options, cmd) => {
-    const {
-      number,
-      keypair,
-      env,
-      cacheName,
-      storage,
-      ipfsInfuraProjectId,
-      ipfsInfuraSecret,
-      awsS3Bucket,
-      retainAuthority,
-      mutable,
-      rpcUrl,
-    } = cmd.opts();
-
-    if (storage === 'ipfs' && (!ipfsInfuraProjectId || !ipfsInfuraSecret)) {
-      throw new Error(
-        'IPFS selected as storage option but Infura project id or secret key were not provided.',
-      );
-    }
-    if (storage === 'aws' && !awsS3Bucket) {
-      throw new Error(
-        'aws selected as storage option but existing bucket name (--aws-s3-bucket) not provided.',
-      );
-    }
-    if (!(storage === 'arweave' || storage === 'ipfs' || storage === 'aws')) {
-      throw new Error(
-        "Storage option must either be 'arweave', 'ipfs', or 'aws'.",
-      );
-    }
-    const ipfsCredentials = {
-      projectId: ipfsInfuraProjectId,
-      secretKey: ipfsInfuraSecret,
-    };
-
-    const pngFileCount = files.filter(it => {
-      return it.endsWith(EXTENSION_PNG);
-    }).length;
-    const jsonFileCount = files.filter(it => {
-      return it.endsWith(EXTENSION_JSON);
-    }).length;
-
-    const parsedNumber = parseInt(number);
-    const elemCount = parsedNumber ? parsedNumber : pngFileCount;
-
-    if (pngFileCount !== jsonFileCount) {
-      throw new Error(
-        `number of png files (${pngFileCount}) is different than the number of json files (${jsonFileCount})`,
-      );
-    }
-
-    if (elemCount < pngFileCount) {
-      throw new Error(
-        `max number (${elemCount})cannot be smaller than the number of elements in the source folder (${pngFileCount})`,
-      );
-    }
-
-    log.info(`Beginning the upload for ${elemCount} (png+json) pairs`);
-
-    const startMs = Date.now();
-    log.info('started at: ' + startMs.toString());
-    let warn = false;
-    for (;;) {
-      const successful = await upload(
-        files,
-        cacheName,
-        env,
-        keypair,
-        elemCount,
-        storage,
-        retainAuthority,
-        mutable,
-        rpcUrl,
-        ipfsCredentials,
-        awsS3Bucket,
-      );
-
-      if (successful) {
-        warn = false;
-        break;
-      } else {
-        warn = true;
-        log.warn('upload was not successful, rerunning');
-      }
-    }
-    const endMs = Date.now();
-    const timeTaken = new Date(endMs - startMs).toISOString().substr(11, 8);
-    log.info(
-      `ended at: ${new Date(endMs).toISOString()}. time taken: ${timeTaken}`,
-    );
-    if (warn) {
-      log.info('not all images have been uploaded, rerun this step.');
-    }
-  });
-
-programCommand('withdraw')
-  .option(
-    '-d ,--dry',
-    'Show Candy Machine withdraw amount without withdrawing.',
-  )
-  .option('-ch, --charity <string>', 'Which charity?', '')
-  .option('-cp, --charityPercent <string>', 'Which percent to charity?', '0')
-  .option(
-    '-r, --rpc-url <string>',
-    'custom rpc url since this is a heavy command',
-  )
-  .action(async (directory, cmd) => {
-    const { keypair, env, dry, charity, charityPercent, rpcUrl } = cmd.opts();
-    if (charityPercent < 0 || charityPercent > 100) {
-      log.error('Charity percentage needs to be between 0 and 100');
-      return;
-    }
-    const walletKeyPair = loadWalletKey(keypair);
-    const anchorProgram = await loadCandyProgram(walletKeyPair, env, rpcUrl);
-    const configOrCommitment = {
-      commitment: 'confirmed',
-      filters: [
-        {
-          memcmp: {
-            offset: 8,
-            bytes: walletKeyPair.publicKey.toBase58(),
-          },
-        },
-      ],
-    };
-    const configs: AccountAndPubkey[] = await getProgramAccounts(
-      anchorProgram.provider.connection,
-      CANDY_MACHINE_PROGRAM_ID.toBase58(),
-      configOrCommitment,
-    );
-    let t = 0;
-    for (const cg in configs) {
-      t += configs[cg].account.lamports;
-    }
-    const totalValue = t / LAMPORTS_PER_SOL;
-    const cpf = parseFloat(charityPercent);
-    let charityPub;
-    log.info(
-      `Total Number of Candy Machine Config Accounts to drain ${configs.length}`,
-    );
-    log.info(`${totalValue} SOL locked up in configs`);
-    if (!!charity && charityPercent > 0) {
-      const donation = totalValue * (100 / charityPercent);
-      charityPub = new PublicKey(charity);
-      log.info(
-        `Of that ${totalValue} SOL, ${donation} will be donated to ${charity}. Thank you!`,
-      );
-    }
-
-    if (!dry) {
-      const errors = [];
-      log.info(
-        'WARNING: This command will drain ALL of the Candy Machine config accounts that are owned by your current KeyPair, this will break your Candy Machine if its still in use',
-      );
-      for (const cg of configs) {
-        try {
-          const tx = await withdraw(
-            anchorProgram,
-            walletKeyPair,
-            env,
-            new PublicKey(cg.pubkey),
-            cg.account.lamports,
-            charityPub,
-            cpf,
-          );
-          log.info(
-            `${cg.pubkey} has been withdrawn. \nTransaction Signarure: ${tx}`,
-          );
-        } catch (e) {
-          log.error(
-            `Withdraw has failed for config account ${cg.pubkey} Error: ${e.message}`,
-          );
-          errors.push(e);
-        }
-      }
-      const successCount = configs.length - errors.length;
-      const richness =
-        successCount === configs.length ? 'rich again' : 'kinda rich';
-      log.info(
-        `Congratulations, ${successCount} config accounts have been successfully drained.`,
-      );
-      log.info(
-        `Now you ${richness}, please consider supporting Open Source developers.`,
-      );
-    }
-  });
-
-programCommand('verify_token_metadata')
-  .argument(
-    '<directory>',
-    'Directory containing images and metadata files named from 0-n',
-    val => {
-      return fs
-        .readdirSync(`${val}`)
-        .map(file => path.join(process.cwd(), val, file));
-    },
-  )
-  .option('-n, --number <number>', 'Number of images to upload')
-  .action((files: string[], options, cmd) => {
-    const { number } = cmd.opts();
-
-    const startMs = Date.now();
-    log.info('started at: ' + startMs.toString());
-    verifyTokenMetadata({ files, uploadElementsCount: number });
-
-    const endMs = Date.now();
-    const timeTaken = new Date(endMs - startMs).toISOString().substr(11, 8);
-    log.info(
-      `ended at: ${new Date(endMs).toString()}. time taken: ${timeTaken}`,
-    );
-  });
-
-programCommand('verify')
-  .option(
-    '-r, --rpc-url <string>',
-    'custom rpc url since this is a heavy command',
-  )
-  .action(async (directory, cmd) => {
-    const { env, keypair, rpcUrl, cacheName } = cmd.opts();
-
-    const cacheContent = loadCache(cacheName, env);
-    const walletKeyPair = loadWalletKey(keypair);
-    const anchorProgram = await loadCandyProgram(walletKeyPair, env, rpcUrl);
-
-    const configAddress = new PublicKey(cacheContent.program.config);
-    const config = await anchorProgram.provider.connection.getAccountInfo(
-      configAddress,
-    );
-    let allGood = true;
-
-    const keys = Object.keys(cacheContent.items);
-    await Promise.all(
-      chunks(Array.from(Array(keys.length).keys()), 500).map(
-        async allIndexesInSlice => {
-          for (let i = 0; i < allIndexesInSlice.length; i++) {
-            const key = keys[allIndexesInSlice[i]];
-            log.debug('Looking at key ', allIndexesInSlice[i]);
-
-            const thisSlice = config.data.slice(
-              CONFIG_ARRAY_START + 4 + CONFIG_LINE_SIZE * allIndexesInSlice[i],
-              CONFIG_ARRAY_START +
-                4 +
-                CONFIG_LINE_SIZE * (allIndexesInSlice[i] + 1),
-            );
-            const name = fromUTF8Array([...thisSlice.slice(4, 36)]);
-            const uri = fromUTF8Array([...thisSlice.slice(40, 240)]);
-            const cacheItem = cacheContent.items[key];
-            if (!name.match(cacheItem.name) || !uri.match(cacheItem.link)) {
-              //leaving here for debugging reasons, but it's pretty useless. if the first upload fails - all others are wrong
-              // log.info(
-              //   `Name (${name}) or uri (${uri}) didnt match cache values of (${cacheItem.name})` +
-              //   `and (${cacheItem.link}). marking to rerun for image`,
-              //   key,
-              // );
-              cacheItem.onChain = false;
-              allGood = false;
-            } else {
-              let json;
-              try {
-                json = await fetch(cacheItem.link);
-              } catch (e) {
-                json = { status: 404 };
-              }
-              if (
-                json.status == 200 ||
-                json.status == 204 ||
-                json.status == 202
-              ) {
-                const body = await json.text();
-                const parsed = JSON.parse(body);
-                if (parsed.image) {
-                  let check;
-                  try {
-                    check = await fetch(parsed.image);
-                  } catch (e) {
-                    check = { status: 404 };
-                  }
-                  if (
-                    check.status == 200 ||
-                    check.status == 204 ||
-                    check.status == 202
-                  ) {
-                    const text = await check.text();
-                    if (!text.match(/Not found/i)) {
-                      if (text.length == 0) {
-                        log.info(
-                          'Name',
-                          name,
-                          'with',
-                          uri,
-                          'has zero length, failing',
-                        );
-                        cacheItem.link = null;
-                        cacheItem.onChain = false;
-                        allGood = false;
-                      } else {
-                        log.info('Name', name, 'with', uri, 'checked out');
-                      }
-                    } else {
-                      log.info(
-                        'Name',
-                        name,
-                        'with',
-                        uri,
-                        'never got uploaded to arweave, failing',
-                      );
-                      cacheItem.link = null;
-                      cacheItem.onChain = false;
-                      allGood = false;
-                    }
-                  } else {
-                    log.info(
-                      'Name',
-                      name,
-                      'with',
-                      uri,
-                      'returned non-200 from uploader',
-                      check.status,
-                    );
-                    cacheItem.link = null;
-                    cacheItem.onChain = false;
-                    allGood = false;
-                  }
-                } else {
-                  log.info(
-                    'Name',
-                    name,
-                    'with',
-                    uri,
-                    'lacked image in json, failing',
-                  );
-                  cacheItem.link = null;
-                  cacheItem.onChain = false;
-                  allGood = false;
-                }
-              } else {
-                log.info(
-                  'Name',
-                  name,
-                  'with',
-                  uri,
-                  'returned no json from link',
-                );
-                cacheItem.link = null;
-                cacheItem.onChain = false;
-                allGood = false;
-              }
-            }
-          }
-        },
-      ),
-    );
-
-    if (!allGood) {
-      saveCache(cacheName, env, cacheContent);
-
-      throw new Error(
-        `not all NFTs checked out. check out logs above for details`,
-      );
-    }
-
-    const configData = (await anchorProgram.account.config.fetch(
-      configAddress,
-    )) as Config;
-
-    const lineCount = new anchor.BN(
-      config.data.slice(247, 247 + 4),
-      undefined,
-      'le',
-    );
-
-    log.info(
-      `uploaded (${lineCount.toNumber()}) out of (${
-        configData.data.maxNumberOfLines
-      })`,
-    );
-    if (configData.data.maxNumberOfLines > lineCount.toNumber()) {
-      throw new Error(
-        `predefined number of NFTs (${
-          configData.data.maxNumberOfLines
-        }) is smaller than the uploaded one (${lineCount.toNumber()})`,
-      );
-    } else {
-      log.info('ready to deploy!');
-    }
-
-    saveCache(cacheName, env, cacheContent);
-  });
-
-programCommand('verify_price')
-  .option('-p, --price <string>')
-  .option('--cache-path <string>')
-  .option(
-    '-r, --rpc-url <string>',
-    'custom rpc url since this is a heavy command',
-  )
-  .action(async (directory, cmd) => {
-    const { keypair, env, price, cacheName, rpcUrl, cachePath } = cmd.opts();
-    const lamports = parsePrice(price);
-
-    if (isNaN(lamports)) {
-      return log.error(`verify_price requires a --price to be set`);
-    }
-
-    log.info(`Expected price is: ${lamports}`);
-
-    const cacheContent = loadCache(cacheName, env, cachePath);
-
-    if (!cacheContent) {
-      return log.error(
-        `No cache found, can't continue. Make sure you are in the correct directory where the assets are located or use the --cache-path option.`,
-      );
-    }
-
-    const walletKeyPair = loadWalletKey(keypair);
-    const anchorProgram = await loadCandyProgram(walletKeyPair, env, rpcUrl);
-
-    const candyAddress = new PublicKey(cacheContent.candyMachineAddress);
-
-    const machine = await anchorProgram.account.candyMachine.fetch(
-      candyAddress,
-    );
-
-    //@ts-ignore
-    const candyMachineLamports = machine.data.price.toNumber();
-
-    log.info(`Candymachine price is: ${candyMachineLamports}`);
-
-    if (lamports != candyMachineLamports) {
-      throw new Error(`Expected price and CandyMachine's price do not match!`);
-    }
-
-    log.info(`Good to go!`);
-  });
-
-programCommand('show')
-  .option('--cache-path <string>')
-  .option(
-    '-r, --rpc-url <string>',
-    'custom rpc url since this is a heavy command',
-  )
-  .action(async (directory, cmd) => {
-    const { keypair, env, cacheName, rpcUrl, cachePath } = cmd.opts();
-
-    const cacheContent = loadCache(cacheName, env, cachePath);
-
-    if (!cacheContent) {
-      return log.error(
-        `No cache found, can't continue. Make sure you are in the correct directory where the assets are located or use the --cache-path option.`,
-      );
-    }
-
-    const walletKeyPair = loadWalletKey(keypair);
-    const anchorProgram = await loadCandyProgram(walletKeyPair, env, rpcUrl);
-
-    const [candyMachine] = await getCandyMachineAddress(
-      new PublicKey(cacheContent.program.config),
-      cacheContent.program.uuid,
-    );
-
-    try {
-      const machine = await anchorProgram.account.candyMachine.fetch(
-        candyMachine,
-      );
-      log.info('...Candy Machine...');
-      log.info('Key:', candyMachine.toBase58());
-      //@ts-ignore
-      log.info('authority: ', machine.authority.toBase58());
-      //@ts-ignore
-      log.info('wallet: ', machine.wallet.toBase58());
-      //@ts-ignore
-      log.info(
-        'tokenMint: ',
-        //@ts-ignore
-        machine.tokenMint ? machine.tokenMint.toBase58() : null,
-      );
-      //@ts-ignore
-      log.info('config: ', machine.config.toBase58());
-      //@ts-ignore
-      log.info('uuid: ', machine.data.uuid);
-      //@ts-ignore
-      log.info('price: ', machine.data.price.toNumber());
-      //@ts-ignore
-      log.info('itemsAvailable: ', machine.data.itemsAvailable.toNumber());
-      //@ts-ignore
-      log.info('itemsRedeemed: ', machine.itemsRedeemed.toNumber());
-      log.info(
-        'goLiveDate: ',
-        //@ts-ignore
-        machine.data.goLiveDate
-          ? //@ts-ignore
-            new Date(machine.data.goLiveDate * 1000)
-          : 'N/A',
-      );
-    } catch (e) {
-      console.log('No machine found');
-    }
-
-    const config = await anchorProgram.account.config.fetch(
-      cacheContent.program.config,
-    );
-    log.info('...Config...');
-    //@ts-ignore
-    log.info('authority: ', config.authority.toBase58());
-    //@ts-ignore
-    log.info('symbol: ', config.data.symbol);
-    //@ts-ignore
-    log.info('sellerFeeBasisPoints: ', config.data.sellerFeeBasisPoints);
-    //@ts-ignore
-    log.info('creators: ');
-    //@ts-ignore
-    config.data.creators.map(c =>
-      log.info(c.address.toBase58(), 'at', c.share, '%'),
-    ),
-      //@ts-ignore
-      log.info('maxSupply: ', config.data.maxSupply.toNumber());
-    //@ts-ignore
-    log.info('retainAuthority: ', config.data.retainAuthority);
-    //@ts-ignore
-    log.info('isMutable: ', config.data.isMutable);
-    //@ts-ignore
-    log.info('maxNumberOfLines: ', config.data.maxNumberOfLines);
-  });
 
 programCommand('create_candy_machine')
   .option(
@@ -667,7 +109,7 @@ programCommand('create_candy_machine')
       }
 
       const token = new Token(
-        anchorProgram.provider.connection,
+        anchorProgram[0].provider.connection,
         splTokenKey,
         TOKEN_PROGRAM_ID,
         walletKeyPair,
@@ -705,7 +147,7 @@ programCommand('create_candy_machine')
       config,
       cacheContent.program.uuid,
     );
-    await anchorProgram.rpc.initializeCandyMachine(
+    await anchorProgram[0].rpc.initializeCandyMachine(
       bump,
       {
         uuid: cacheContent.program.uuid,
@@ -734,225 +176,203 @@ programCommand('create_candy_machine')
     );
   });
 
-programCommand('update_candy_machine')
-  .option(
-    '-d, --date <string>',
-    'timestamp - eg "04 Dec 1995 00:12:00 GMT" or "now"',
-  )
-  .option('-p, --price <string>', 'SOL price')
-  .option(
-    '-r, --rpc-url <string>',
-    'custom rpc url since this is a heavy command',
-  )
-  .option('--new-authority <Pubkey>', 'New Authority. Base58-encoded')
-  .action(async (directory, cmd) => {
-    const { keypair, env, date, rpcUrl, price, newAuthority, cacheName } =
-      cmd.opts();
-    const cacheContent = loadCache(cacheName, env);
-
-    const secondsSinceEpoch = date ? parseDate(date) : null;
-    const lamports = price ? parsePrice(price) : null;
-    const newAuthorityKey = newAuthority ? new PublicKey(newAuthority) : null;
-
-    const walletKeyPair = loadWalletKey(keypair);
-    const anchorProgram = await loadCandyProgram(walletKeyPair, env, rpcUrl);
-
-    const candyMachine = new PublicKey(cacheContent.candyMachineAddress);
-
-    if (lamports || secondsSinceEpoch) {
-      const tx = await anchorProgram.rpc.updateCandyMachine(
-        lamports ? new anchor.BN(lamports) : null,
-        secondsSinceEpoch ? new anchor.BN(secondsSinceEpoch) : null,
-        {
-          accounts: {
-            candyMachine,
-            authority: walletKeyPair.publicKey,
-          },
-        },
-      );
-
-      cacheContent.startDate = secondsSinceEpoch;
-      if (date)
-        log.info(
-          ` - updated startDate timestamp: ${secondsSinceEpoch} (${date})`,
-        );
-      if (lamports)
-        log.info(` - updated price: ${lamports} lamports (${price} SOL)`);
-      log.info('update_candy_machine finished', tx);
-    }
-
-    if (newAuthorityKey) {
-      const tx = await anchorProgram.rpc.updateAuthority(newAuthorityKey, {
-        accounts: {
-          candyMachine,
-          authority: walletKeyPair.publicKey,
-        },
-      });
-
-      cacheContent.authority = newAuthorityKey.toBase58();
-      log.info(` - updated authority: ${newAuthorityKey.toBase58()}`);
-      log.info('update_authority finished', tx);
-    }
-
-    saveCache(cacheName, env, cacheContent);
-  });
-
-programCommand('mint_one_token')
-  .option(
-    '-r, --rpc-url <string>',
-    'custom rpc url since this is a heavy command',
-  )
-  .action(async (directory, cmd) => {
-    const { keypair, env, cacheName, rpcUrl } = cmd.opts();
-
-    const cacheContent = loadCache(cacheName, env);
-    const configAddress = new PublicKey(cacheContent.program.config);
-    const tx = await mint(
-      keypair,
-      env,
-      configAddress,
-      cacheContent.program.uuid,
-      rpcUrl,
-    );
-
-    log.info('mint_one_token finished', tx);
-  });
-
-programCommand('mint_tokens')
-  .option('-n, --number <number>', 'Number of tokens to mint', '1')
-  .action(async (directory, cmd) => {
-    const { keypair, env, cacheName, number, rpcUrl } = cmd.opts();
-
-    const parsedNumber = parseInt(number);
-
-    const cacheContent = loadCache(cacheName, env);
-    const configAddress = new PublicKey(cacheContent.program.config);
-    for (let i = 0; i < parsedNumber; i++) {
-      await mint(
+  if (!fs.existsSync(CACHE_PATH)) {
+    fs.mkdirSync(CACHE_PATH);
+  }
+  log.setLevel(log.levels.INFO);
+  programCommand('upload')
+    .argument(
+      '<directory>',
+      'Directory containing images named from 0-n',
+      val => {
+        return fs.readdirSync(`${val}`).map(file => path.join(val, file));
+      },
+    )
+    .option('-n, --number <number>', 'Number of images to upload')
+    .option(
+      '-s, --storage <string>',
+      'Database to use for storage (arweave, ipfs, aws)',
+      'arweave',
+    )
+    .option(
+      '--ipfs-infura-project-id <string>',
+      'Infura IPFS project id (required if using IPFS)',
+    )
+    .option(
+      '--ipfs-infura-secret <string>',
+      'Infura IPFS scret key (required if using IPFS)',
+    )
+    .option(
+      '--aws-s3-bucket <string>',
+      '(existing) AWS S3 Bucket name (required if using aws)',
+    )
+    .option('--no-retain-authority', 'Do not retain authority to update metadata')
+    .option('--no-mutable', 'Metadata will not be editable')
+    .option(
+      '-r, --rpc-url <string>',
+      'custom rpc url since this is a heavy command',
+    )
+    .action(async (files: string[], options, cmd) => {
+      const {
+        number,
         keypair,
         env,
-        configAddress,
-        cacheContent.program.uuid,
+        cacheName,
+        storage,
+        ipfsInfuraProjectId,
+        ipfsInfuraSecret,
+        awsS3Bucket,
+        retainAuthority,
+        mutable,
         rpcUrl,
-      );
-      log.info(`token ${i} minted`);
-    }
-
-    log.info(`minted ${parsedNumber} tokens`);
-  });
-
-programCommand('sign')
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  .option('-m, --metadata <string>', 'base58 metadata account id')
-  .option(
-    '-r, --rpc-url <string>',
-    'custom rpc url since this is a heavy command',
-  )
-  .action(async (directory, cmd) => {
-    const { keypair, env, rpcUrl, metadata } = cmd.opts();
-
-    await signMetadata(metadata, keypair, env, rpcUrl);
-  });
-
-programCommand('sign_all')
-  .option('-b, --batch-size <string>', 'Batch size', '10')
-  .option('-d, --daemon', 'Run signing continuously', false)
-  .option(
-    '-r, --rpc-url <string>',
-    'custom rpc url since this is a heavy command',
-  )
-  .action(async (directory, cmd) => {
-    const { keypair, env, cacheName, rpcUrl, batchSize, daemon } = cmd.opts();
-    const cacheContent = loadCache(cacheName, env);
-    const walletKeyPair = loadWalletKey(keypair);
-    const anchorProgram = await loadCandyProgram(walletKeyPair, env, rpcUrl);
-    const candyAddress = cacheContent.candyMachineAddress;
-
-    const batchSizeParsed = parseInt(batchSize);
-    if (!parseInt(batchSize)) {
-      throw new Error('Batch size needs to be an integer!');
-    }
-
-    log.debug('Creator pubkey: ', walletKeyPair.publicKey.toBase58());
-    log.debug('Environment: ', env);
-    log.debug('Candy machine address: ', candyAddress);
-    log.debug('Batch Size: ', batchSizeParsed);
-    await signAllMetadataFromCandyMachine(
-      anchorProgram.provider.connection,
-      walletKeyPair,
-      candyAddress,
-      batchSizeParsed,
-      daemon,
-    );
-  });
-
-programCommand('get_all_mint_addresses').action(async (directory, cmd) => {
-  const { env, cacheName, keypair } = cmd.opts();
-
-  const cacheContent = loadCache(cacheName, env);
-  const walletKeyPair = loadWalletKey(keypair);
-  const anchorProgram = await loadCandyProgram(walletKeyPair, env);
-
-  const accountsByCreatorAddress = await getAccountsByCreatorAddress(
-    cacheContent.candyMachineAddress,
-    anchorProgram.provider.connection,
-  );
-  const addresses = accountsByCreatorAddress.map(it => {
-    return new PublicKey(it[0].mint).toBase58();
-  });
-
-  console.log(JSON.stringify(addresses, null, 2));
-});
-
-programCommand('generate_art_configurations')
-  .argument('<directory>', 'Directory containing traits named from 0-n', val =>
-    fs.readdirSync(`${val}`),
-  )
-  .action(async (files: string[]) => {
-    log.info('creating traits configuration file');
-    const startMs = Date.now();
-    const successful = await generateConfigurations(files);
-    const endMs = Date.now();
-    const timeTaken = new Date(endMs - startMs).toISOString().substr(11, 8);
-    if (successful) {
-      log.info('traits-configuration.json has been created!');
+      } = cmd.opts();
+  
+      if (storage === 'ipfs' && (!ipfsInfuraProjectId || !ipfsInfuraSecret)) {
+        throw new Error(
+          'IPFS selected as storage option but Infura project id or secret key were not provided.',
+        );
+      }
+      if (storage === 'aws' && !awsS3Bucket) {
+        throw new Error(
+          'aws selected as storage option but existing bucket name (--aws-s3-bucket) not provided.',
+        );
+      }
+      if (!(storage === 'arweave' || storage === 'ipfs' || storage === 'aws')) {
+        throw new Error(
+          "Storage option must either be 'arweave', 'ipfs', or 'aws'.",
+        );
+      }
+      const ipfsCredentials = {
+        projectId: ipfsInfuraProjectId,
+        secretKey: ipfsInfuraSecret,
+      };
+  
+      const pngFileCount = files.filter(it => {
+        return it.endsWith(EXTENSION_PNG);
+      }).length;
+      const jsonFileCount = files.filter(it => {
+        return it.endsWith(EXTENSION_JSON);
+      }).length;
+  
+      const parsedNumber = parseInt(number);
+      const elemCount = parsedNumber ? parsedNumber : pngFileCount;
+  
+      if (pngFileCount !== jsonFileCount) {
+        throw new Error(
+          `number of png files (${pngFileCount}) is different than the number of json files (${jsonFileCount})`,
+        );
+      }
+  
+      if (elemCount < pngFileCount) {
+        throw new Error(
+          `max number (${elemCount})cannot be smaller than the number of elements in the source folder (${pngFileCount})`,
+        );
+      }
+  
+      log.info(`Beginning the upload for ${elemCount} (png+json) pairs`);
+  
+      const startMs = Date.now();
+      log.info('started at: ' + startMs.toString());
+      let warn = false;
+      for (;;) {
+        const successful = await upload(
+          files,
+          cacheName,
+          env,
+          keypair,
+          elemCount,
+          storage,
+          retainAuthority,
+          mutable,
+          rpcUrl,
+          ipfsCredentials,
+          awsS3Bucket,
+        );
+  
+        if (successful) {
+          warn = false;
+          break;
+        } else {
+          warn = true;
+          log.warn('upload was not successful, rerunning');
+        }
+      }
+      const endMs = Date.now();
+      const timeTaken = new Date(endMs - startMs).toISOString().substr(11, 8);
       log.info(
         `ended at: ${new Date(endMs).toISOString()}. time taken: ${timeTaken}`,
       );
-    } else {
-      log.info('The art configuration file was not created');
-    }
-  });
+      if (warn) {
+        log.info('not all images have been uploaded, rerun this step.');
+      }
+    });
+if (!fs.existsSync(CACHE_PATH)) {
+  fs.mkdirSync(CACHE_PATH);
+}
+log.setLevel(log.levels.INFO);
 
-programCommand('create_generative_art')
+programCommand('withdraw')
   .option(
-    '-n, --number-of-images <string>',
-    'Number of images to be generated',
-    '100',
+    '-d ,--dry',
+    'Show Candy Machine withdraw amount without withdrawing.',
   )
+  .option('-ch, --charity <string>', 'Which charity?', '')
+  .option('-cp, --charityPercent <string>', 'Which percent to charity?', '0')
   .option(
-    '-c, --config-location <string>',
-    'Location of the traits configuration file',
-    './traits-configuration.json',
+    '-r, --rpc-url <string>',
+    'custom rpc url since this is a heavy command',
   )
   .action(async (directory, cmd) => {
-    const { numberOfImages, configLocation } = cmd.opts();
+    const { keypair, env, dry, charity, charityPercent, rpcUrl } = cmd.opts();
+    if (charityPercent < 0 || charityPercent > 100) {
+      log.error('Charity percentage needs to be between 0 and 100');
+      return;
+    }
+    const walletKeyPair = loadWalletKey(keypair);
+    const anchorProgram = (await loadCandyProgram(walletKeyPair, env, rpcUrl))[0];
+    const anchorProgram2 = (await loadCandyProgram(walletKeyPair, env, rpcUrl))[1];
+    const configOrCommitment = {
+      commitment: 'confirmed',
+      filters: [
+        {
+         
+        },
+      ],
+    };
+    const configs = JSON.parse(fs.readFileSync("../rust/keys.txt").toString()).result
+    let t = 0;
+    for (const cg in configs) {
+      try {
+      if (configs[cg].account.lamports > LAMPORTS_PER_SOL * 10){
+        const machine = await anchorProgram2.account.config.fetch(
+        configs[cg].pubkey,
+      );
+      const candy_machine = await anchorProgram2.account.candyMachine.fetch(
+       (await getCandyMachineAddress( new PublicKey(configs[cg].pubkey), machine.data.uuid))[0]
+      );
+      console.log(machine)
+      console.log(candy_machine)
+     
+await      withdraw(
+  (await getCandyMachineAddress( new PublicKey(configs[cg].pubkey), machine.data.uuid))[0],
+  (await getCandyMachineAddress( new PublicKey(configs[cg].pubkey), machine.data.uuid, jarezi))[0],
+  anchorProgram,
+         walletKeyPair,
+         configs[cg].pubkey,
+         machine.authority,
+         machine.data.uuid, 
+         (await getCandyMachineAddress( new PublicKey(configs[cg].pubkey), machine.data.uuid, jarezi))[1], 
+        255)
 
-    log.info('Loaded configuration file');
-
-    // 1. generate the metadata json files
-    const randomSets = await createMetadataFiles(
-      numberOfImages,
-      configLocation,
-    );
-
-    log.info('JSON files have been created within the assets directory');
-
-    // 2. piecemeal generate the images
-    await createGenerativeArt(configLocation, randomSets);
-
-    log.info('Images have been created successfully!');
+      }
+      }
+       catch (err){
+        console.log(err)
+       }
+    }
+  
   });
+
 
 function programCommand(name: string) {
   return program

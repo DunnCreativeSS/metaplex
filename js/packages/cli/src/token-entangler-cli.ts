@@ -31,7 +31,7 @@ export const getEpKeyFromArgs = async (
     log.info('No entangled pair detected, generating from mint arguments.');
     epKey = (await getTokenEntanglement(mintA, mintB))[0];
 
-    const obj = await anchorProgram.provider.connection.getAccountInfo(epKey);
+    const obj = await anchorProgram[0].provider.connection.getAccountInfo(epKey);
     if (!obj) {
       epKey = (await getTokenEntanglement(mintB, mintA))[0];
     }
@@ -65,7 +65,7 @@ programCommand('show')
       entangledPair,
     );
 
-    const epObj = await anchorProgram.account.entangledPair.fetch(epKey);
+    const epObj = await anchorProgram[0].account.entangledPair.fetch(epKey);
 
     log.info('-----');
     log.info('Entangled Pair:', epKey.toBase58());
@@ -172,7 +172,7 @@ programCommand('create_entanglement')
     const ata = (await getAtaForMint(mintBKey, walletKeyPair.publicKey))[0];
     const transferAuthority = web3.Keypair.generate();
     const signers = [transferAuthority];
-    const instruction = await anchorProgram.instruction.createEntangledPair(
+    const instruction = await anchorProgram[0].instruction.createEntangledPair(
       bump,
       reverseBump,
       tokenABump,
@@ -222,7 +222,7 @@ programCommand('create_entanglement')
     ];
 
     await sendTransactionWithRetryWithKeypair(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       walletKeyPair,
       instructions,
       signers,
@@ -262,7 +262,7 @@ programCommand('swap')
       entangledPair,
     );
 
-    const epObj = await anchorProgram.account.entangledPair.fetch(epKey);
+    const epObj = await anchorProgram[0].account.entangledPair.fetch(epKey);
 
     //@ts-ignore
     const mintAKey = epObj.mintA;
@@ -270,7 +270,7 @@ programCommand('swap')
     const mintBKey = epObj.mintB;
     const aAta = (await getAtaForMint(mintAKey, walletKeyPair.publicKey))[0];
     const bAta = (await getAtaForMint(mintBKey, walletKeyPair.publicKey))[0];
-    const currABal = await getTokenAmount(anchorProgram, aAta, mintAKey);
+    const currABal = await getTokenAmount(anchorProgram[0],aAta, mintAKey);
     const token = currABal == 1 ? aAta : bAta,
       replacementToken = currABal == 1 ? bAta : aAta;
     const tokenMint = currABal == 1 ? mintAKey : mintBKey,
@@ -296,7 +296,7 @@ programCommand('swap')
 
     const remainingAccounts = [];
 
-    const metadataObj = await anchorProgram.provider.connection.getAccountInfo(
+    const metadataObj = await anchorProgram[0].provider.connection.getAccountInfo(
       tokenMetadata,
     );
     const metadataDecoded: Metadata = decodeMetadata(
@@ -323,7 +323,7 @@ programCommand('swap')
         });
       }
     }
-    const instruction = await anchorProgram.instruction.swap({
+    const instruction = await anchorProgram[0].instruction.swap({
       accounts: {
         //@ts-ignore
         treasuryMint: epObj.treasuryMint,
@@ -394,7 +394,7 @@ programCommand('swap')
     ];
 
     await sendTransactionWithRetryWithKeypair(
-      anchorProgram.provider.connection,
+      anchorProgram[0].provider.connection,
       walletKeyPair,
       instructions,
       signers,
@@ -456,7 +456,7 @@ programCommand('update_entanglement')
       entangledPair,
     );
 
-    const epObj = await anchorProgram.account.entangledPair.fetch(epKey);
+    const epObj = await anchorProgram[0].account.entangledPair.fetch(epKey);
 
     //@ts-ignore
     const authorityKey = new web3.PublicKey(
@@ -475,7 +475,7 @@ programCommand('update_entanglement')
         )
       : //@ts-ignore
         epObj.price;
-    await anchorProgram.rpc.updateEntangledPair(
+    await anchorProgram[0].rpc.updateEntangledPair(
       priceAdjusted,
       paysEveryTime == 'true',
       {

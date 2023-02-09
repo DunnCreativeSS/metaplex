@@ -2,7 +2,7 @@
 url = "https://anchor.projectserum.com"
 
 [provider]
-cluster = "devnet"
+cluster = "mainnet"
 wallet = "~/.config/solana/id.json"
 
 [programs.mainnet]
@@ -14,4 +14,4 @@ gumdrop = "gdrpGjVffourzkdDRrQmySw4aTHr8a3xmQzzxSwFD1a"
 test = "ts-mocha -p ./tsconfig.json -t 1000000 test/*.ts"
 
 [workspace]
-members = ["nft-candy-machine"]
+members = ["nft-candy-machine2"]

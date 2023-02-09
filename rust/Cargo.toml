@@ -1,17 +1,6 @@
 [workspace]
 members = [
-  "nft-candy-machine/",
-  "fair-launch/",
-  "token-entangler/",
-  "auction/program",
-  "metaplex/program",
-  "auction-house/",
-  "token-vault/program",
-  "token-metadata/program",
-  "metaplex/test",
-  "token-vault/test",
-  "token-metadata/test",
-  "gumdrop/",
+  "nft-candy-machine2/"
 ]
 exclude = [
 ]

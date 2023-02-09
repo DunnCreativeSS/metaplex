@@ -14,7 +14,7 @@ export async function signMetadata(
 ) {
   const creatorKeyPair = loadWalletKey(keypair);
   const anchorProgram = await loadCandyProgram(creatorKeyPair, env, rpcUrl);
-  await signWithRetry(anchorProgram, creatorKeyPair, new PublicKey(metadata));
+  await signWithRetry(anchorProgram[0],creatorKeyPair, new PublicKey(metadata));
 }
 
 async function signWithRetry(
@@ -23,7 +23,7 @@ async function signWithRetry(
   metadataAddress: PublicKey,
 ) {
   await sendTransactionWithRetryWithKeypair(
-    anchorProgram.provider.connection,
+    anchorProgram[0].provider.connection,
     creatorKeyPair,
     [
       signMetadataInstruction(

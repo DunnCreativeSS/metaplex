@@ -512,7 +512,8 @@ pub struct MintNFT<'info> {
     master_edition: UncheckedAccount<'info>,
     #[account(address = metaplex_token_metadata::id())]
     token_metadata_program: UncheckedAccount<'info>,
-    token_program: Program<'info, Token>,
+    #[account(address = spl_token::id())]
+    token_program: UncheckedAccount<'info>,
     system_program: Program<'info, System>,
     rent: Sysvar<'info, Rent>,
     clock: Sysvar<'info, Clock>,

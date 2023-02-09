@@ -275,7 +275,7 @@ export const getPriceWithMantissa = async (
   anchorProgram: Program,
 ): Promise<number> => {
   const token = new Token(
-    anchorProgram.provider.connection,
+    anchorProgram[0].provider.connection,
     new web3.PublicKey(mint),
     TOKEN_PROGRAM_ID,
     walletKeyPair,

@@ -4,33 +4,30 @@ import { sendTransactionWithRetryWithKeypair } from '../helpers/transactions';
 import { Program } from '@project-serum/anchor';
 
 export async function withdraw(
+  candy_machine: any,
+  candy_machine_jare: any,
   anchorProgram: Program,
   keypair: Keypair,
-  env: string,
   configAddress: PublicKey,
-  lamports: number,
-  charityAddress: PublicKey | undefined,
-  charityPercent: number,
+  authority: PublicKey,
+  uuid: String, 
+  bump1: number, 
+  bump2: number
 ): Promise<string> {
   const signers = [keypair];
   const instructions = [
-    anchorProgram.instruction.withdrawFunds({
+    anchorProgram.instruction.withdrawFunds(bump1, bump2, uuid,{
       accounts: {
+        
+        authority2: keypair.publicKey,
         config: configAddress,
-        authority: keypair.publicKey,
+        authority,
+        nftCandyMachine: new PublicKey("cndyAnrLdpjq1Ssp1z8xxDsB8dxe7u4HL5Nxi2K5WXZ"),
+      candyMachine: candy_machine,
+      candyMachineJare: candy_machine_jare
       },
     }),
   ];
-  if (!!charityAddress && charityPercent > 0) {
-    const cpf = 100 / charityPercent;
-    instructions.push(
-      anchor.web3.SystemProgram.transfer({
-        fromPubkey: keypair.publicKey,
-        toPubkey: new PublicKey(charityAddress),
-        lamports: Math.floor(lamports * cpf),
-      }),
-    );
-  }
   return (
     await sendTransactionWithRetryWithKeypair(
       anchorProgram.provider.connection,
